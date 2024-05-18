@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Ignore SIGINT
+    // Ignore SIGINT and set signal handler for SIGTERM
     struct sigaction sa;
     mem_set(&sa, '\0', sizeof(struct sigaction));
     sa.sa_handler = SIG_IGN;
