@@ -87,6 +87,9 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    pid_t my_pid = getpid();
+    printf("current pid: %d\n", my_pid);
+
     // Ignore SIGINT and set signal handler for SIGTERM
     struct sigaction sa;
     mem_set(&sa, '\0', sizeof(struct sigaction));
