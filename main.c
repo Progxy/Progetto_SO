@@ -35,6 +35,16 @@ void signal_handler(int signal) {
             int status;
             waitpid(pids[i], &status, 0);
         }
+    } else if (signal == SIGUSR2) {
+        printf("Going to sleep...\n");
+        sigset_t sigset;
+        int sig_code;
+        sigemptyset(&sigset);
+        sigaddset(&sigset, SIGUSR2);
+        sigprocmask(SIG_BLOCK, &sigset, NULL);
+        sigwait(&sigset, &sig_code);
+        printf("Waking up from %d!\n", sig_code);
+        return;
     }
     exit(0);
     return;
@@ -97,6 +107,8 @@ int main(int argc, char* argv[]) {
     sigaction(SIGINT, &sa, NULL);
     sa.sa_handler = signal_handler;
     sigaction(SIGTERM, &sa, NULL);
+    sa.sa_handler = signal_handler;
+    sigaction(SIGUSR2, &sa, NULL);
     
     unsigned int N = atoi(argv[1]);
     printf("Printing %u numbers...\n", N);
