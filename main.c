@@ -76,15 +76,15 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
             return -1;
         }
 
-        if (status == READY) printf("child_id '%d': %u\n", pid, (*CAST_PTR(shm_ptr, unsigned int))++);
-        else continue;
-        
-        // Store the name of the buffer
-        char buffer[50];
-        int len = snprintf(buffer, 50, "%d\n", pid);
-        if ((res = write(vis_pid_fd, buffer, len)) == -1) {
-            perror("Failed writing");
-            return -1;
+        if (status == READY) {
+            printf("child_id '%d': %u\n", pid, (*CAST_PTR(shm_ptr, unsigned int))++);        
+            // Store the name of the buffer
+            char buffer[50];
+            int len = snprintf(buffer, 50, "%d\n", pid);
+            if ((res = write(vis_pid_fd, buffer, len)) == -1) {
+                perror("Failed writing");
+                return -1;
+            }
         }
 
         bool iVal = FINISH;
@@ -99,6 +99,7 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
         
         sleep(2); // Wait the thread manager to consume from the pipe before the thread itself
     }
+
     return 0;
 }
 
@@ -109,7 +110,7 @@ int main(int argc, char* argv[]) {
     }
 
     pid_t my_pid = getpid();
-    printf("current pid: %d\n", my_pid);
+    printf("Coordinator pid: %d\n", my_pid);
 
     // Ignore SIGINT and set signal handler for SIGTERM
     struct sigaction sa;
@@ -192,7 +193,7 @@ int main(int argc, char* argv[]) {
         }
 
         sleep(1); // Wait the thread selected to consume from the pipe
-        
+
         if ((iRet = read(pipefds[child][READER], &res, sizeof(res))) == -1) {
             perror("Error reading");
             return -1;
