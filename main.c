@@ -15,6 +15,7 @@
 #define TRUE 1
 
 typedef unsigned char bool;
+typedef enum Status { READY = 1, FINISH } Status;
 
 pid_t pids[MAX_CHILDREN] = {0};
 
@@ -28,6 +29,17 @@ static void mem_set(void* dest, unsigned char src, size_t size) {
     return;
 }
 
+static void terminate_program(int pipefds[MAX_CHILDREN][2]) {
+    // Join all the visualizers
+    for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
+        kill(pids[i], SIGUSR1);
+        int status;
+        waitpid(pids[i], &status, 0);
+        close(pipefds[i][READER]);
+        close(pipefds[i][WRITER]);
+    }
+}
+
 void signal_handler(int signal) {
     if (signal == SIGTERM) {
         for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
@@ -36,14 +48,12 @@ void signal_handler(int signal) {
             waitpid(pids[i], &status, 0);
         }
     } else if (signal == SIGUSR2) {
-        printf("Going to sleep...\n");
         sigset_t sigset;
         int sig_code;
         sigemptyset(&sigset);
         sigaddset(&sigset, SIGUSR2);
         sigprocmask(SIG_BLOCK, &sigset, NULL);
         sigwait(&sigset, &sig_code);
-        printf("Waking up from %d!\n", sig_code);
         return;
     }
     exit(0);
@@ -66,7 +76,8 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
             return -1;
         }
 
-        if (status) printf("child_id '%d': %u\n", pid, (*CAST_PTR(shm_ptr, unsigned int))++);
+        if (status == READY) printf("child_id '%d': %u\n", pid, (*CAST_PTR(shm_ptr, unsigned int))++);
+        else continue;
         
         // Store the name of the buffer
         char buffer[50];
@@ -76,7 +87,7 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
             return -1;
         }
 
-        bool iVal = 1;
+        bool iVal = FINISH;
         if ((res = write(pipefds[WRITER], &iVal, sizeof(iVal))) == -1) {
             perror("Failed writing");
             return -1;
@@ -173,7 +184,7 @@ int main(int argc, char* argv[]) {
         unsigned int child = rand() % MAX_CHILDREN;
         bool res;
         int iRet;
-        bool iVal = 1;
+        bool iVal = READY;
 
         if ((iRet = write(pipefds[child][WRITER], &iVal, sizeof(iVal))) == -1) {
             perror("Error writing");
@@ -187,6 +198,12 @@ int main(int argc, char* argv[]) {
             return -1;
         }
 
+        if (res != FINISH) {
+            printf("error while printing child %u: %u\n", pids[child], res);
+            terminate_program(pipefds);
+            return -1;
+        }
+
         // Store the number of the child
         char buffer[50];
         int len = snprintf(buffer, 50, "%u\n", pids[child]);
@@ -196,14 +213,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Join all the visualizers
-    for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
-        kill(pids[i], SIGUSR1);
-        int status;
-        waitpid(pids[i], &status, 0);
-        close(pipefds[i][READER]);
-        close(pipefds[i][WRITER]);
-    }
+    terminate_program(pipefds);
 
     close(vis_pid_fd);
     close(coord_pid_fd);
