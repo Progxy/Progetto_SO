@@ -8,4 +8,4 @@ gcc -std=c11 -Wall -Wextra -pedantic main.c -o out/demo
 
 cd out
 
-./demo 10
+./demo 100
