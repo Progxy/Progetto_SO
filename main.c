@@ -36,7 +36,7 @@ static void mem_set(void* dest, unsigned char src, size_t size) {
 }
 
 static void terminate_program(int pipefds[MAX_CHILDREN][2], int vis_pid_fd, int coord_pid_fd) {
-    // Join all the visualizers
+    // Terminate all the visualizers
     for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
         kill(pids[i], SIGUSR1);
         int status;
@@ -211,6 +211,7 @@ int main(int argc, char* argv[]) {
         // Set the selected visualizer to ready state
         if ((iRet = write(pipefds[child][WRITER], &iVal, sizeof(iVal))) == -1) {
             perror("Error writing");
+            terminate_program(pipefds, vis_pid_fd, coord_pid_fd);
             return -1;
         }
 
@@ -218,6 +219,7 @@ int main(int argc, char* argv[]) {
 
         if ((iRet = read(pipefds[child][READER], &res, sizeof(res))) == -1) {
             perror("Error reading");
+            terminate_program(pipefds, vis_pid_fd, coord_pid_fd);
             return -1;
         }
 
@@ -232,6 +234,7 @@ int main(int argc, char* argv[]) {
         int len = snprintf(buffer, 50, "%u\n", pids[child]);
         if ((iRet = write(coord_pid_fd, buffer, len)) == -1) {
             perror("Error writing");
+            terminate_program(pipefds, vis_pid_fd, coord_pid_fd);
             return -1;
         }
     }
