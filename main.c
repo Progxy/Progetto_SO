@@ -1,10 +1,13 @@
+#define _POSIX_C_SOURCE 199508L
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #define NOT_USED(var) (void) var
 #define CAST_PTR(ptr, type) ((type*) ptr)
@@ -29,7 +32,7 @@ static void mem_set(void* dest, unsigned char src, size_t size) {
     return;
 }
 
-static void terminate_program(int pipefds[MAX_CHILDREN][2]) {
+static void terminate_program(int pipefds[MAX_CHILDREN][2], int vis_pid_fd, int coord_pid_fd) {
     // Join all the visualizers
     for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
         kill(pids[i], SIGUSR1);
@@ -38,6 +41,9 @@ static void terminate_program(int pipefds[MAX_CHILDREN][2]) {
         close(pipefds[i][READER]);
         close(pipefds[i][WRITER]);
     }
+
+    close(vis_pid_fd);
+    close(coord_pid_fd);
 }
 
 void signal_handler(int signal) {
@@ -148,13 +154,13 @@ int main(int argc, char* argv[]) {
 
     close(fd);
 
-    int vis_pid_fd = open("./out/vis_pid.txt", O_CREAT | O_RDWR);
+    int vis_pid_fd = open("./vis_pid.txt", O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
     if (vis_pid_fd == -1) {
         perror("Unable to open './vis_pid.txt'");
         return -1;
     }    
     
-    int coord_pid_fd = open("./out/coord_pid.txt", O_CREAT | O_RDWR);
+    int coord_pid_fd = open("./coord_pid.txt", O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
     if (coord_pid_fd == -1) {
         perror("Unable to open './coord_pid.txt'");
         return -1;
@@ -201,7 +207,7 @@ int main(int argc, char* argv[]) {
 
         if (res != FINISH) {
             printf("error while printing child %u: %u\n", pids[child], res);
-            terminate_program(pipefds);
+            terminate_program(pipefds, vis_pid_fd, coord_pid_fd);
             return -1;
         }
 
@@ -214,10 +220,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    terminate_program(pipefds);
-
-    close(vis_pid_fd);
-    close(coord_pid_fd);
+    terminate_program(pipefds, vis_pid_fd, coord_pid_fd);
 
     int unlink_res = shm_unlink("my_shm");
     if (unlink_res == -1) perror("Failed unlinking the shared memory");
