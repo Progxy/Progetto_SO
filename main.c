@@ -11,13 +11,12 @@
 
 #define CAST_PTR(ptr, type) ((type*) ptr)
 #define MAX_CHILDREN 10
-#define READER 0
-#define WRITER 1
 #define FALSE 0
 #define TRUE 1
 
 typedef unsigned char bool;
 typedef enum Status { READY = 1, FINISH } Status;
+typedef enum PipeType { READER, WRITER } PipeType;
 
 pid_t pids[MAX_CHILDREN] = {0};
 
