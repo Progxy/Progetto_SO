@@ -102,12 +102,14 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
 
 void signal_handler(int signal) {
     if (signal == SIGTERM) {
+        // Kill all the visualizers
         for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
             kill(pids[i], SIGUSR1);
             int status;
             waitpid(pids[i], &status, 0);
         }
     } else if (signal == SIGUSR2) {
+        // Wait the signal to resume the execution
         sigset_t sigset;
         int sig_code;
         sigemptyset(&sigset);
