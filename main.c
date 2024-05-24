@@ -35,6 +35,19 @@ static void mem_set(void* dest, unsigned char src, size_t size) {
     return;
 }
 
+static int itoa(int num, char* str, char suffix) {
+    if (num == 0) return (str[0] = '0', str[1] = suffix, 2);
+    int temp = 1;
+    unsigned int num_size = 0;
+
+    for (num_size = 0; num >= temp; ++num_size) temp *= 10;
+
+    str[num_size] = suffix;
+    for (int i = num_size - 1; i >= 0; --i, num /= 10) str[i] = (num % 10) + 48;
+    
+    return (num_size + 1);
+}
+
 static void terminate_program(int pipefds[MAX_CHILDREN][2], int vis_pid_fd, int coord_pid_fd) {
     // Terminate all the visualizers
     for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
@@ -77,8 +90,8 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
         if (status == READY) {
             printf("child_id '%d': %u\n", pid, (*CAST_PTR(shm_ptr, unsigned int))++);        
             // Store the pid of the visualizer
-            char buffer[50];
-            int len = snprintf(buffer, 50, "%d\n", pid);
+            char buffer[16] = {0};
+            int len = itoa(pid, buffer, '\n');
             if ((res = write(vis_pid_fd, buffer, len)) == -1) {
                 perror("Failed writing");
                 return -1;
@@ -232,8 +245,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Store the pid of the visualizer
-        char buffer[50];
-        int len = snprintf(buffer, 50, "%u\n", pids[child]);
+        char buffer[16] = {0};
+        int len = itoa(pids[child], buffer, '\n');
         if ((iRet = write(coord_pid_fd, buffer, len)) == -1) {
             perror("Error writing");
             terminate_program(pipefds, vis_pid_fd, coord_pid_fd);
