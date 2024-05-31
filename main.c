@@ -78,7 +78,7 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
     bool status = READY;
 
     while (status) {
-        bool iVal = FINISH;
+        const bool iVal = FINISH;
         int res;
         
         // Wait to read the READY signal
@@ -161,6 +161,9 @@ int main(int argc, char* argv[]) {
     if (visualizers_count > MAX_CHILDREN) {
         printf("The max number of visualizers is %u, requested: %u.\n", MAX_CHILDREN, visualizers_count);
         return -1;
+    } else if (visualizers_count == 0) {
+        printf("Impossible to print with 0 visualizers.\n");
+        return -1;
     }
     printf("Visualizers count: %u\n", visualizers_count);
 
@@ -226,7 +229,7 @@ int main(int argc, char* argv[]) {
 
     for (unsigned int i = 0; i < N; ++i) {
         unsigned int child = rand() % visualizers_count;
-        bool iVal = READY;
+        const bool iVal = READY;
         bool res;
         int iRet;
 
@@ -237,7 +240,7 @@ int main(int argc, char* argv[]) {
             return -1;
         }
 
-        sleep(1); // Wait the selected visualizer to consume from the pipe
+        sleep(2); // Wait the selected visualizer to consume from the pipe
 
         if ((iRet = read(pipefds[child][READER], &res, sizeof(res))) == -1) {
             perror("Error reading");
