@@ -19,6 +19,7 @@ typedef enum Status { READY = 1, FINISH } Status;
 typedef enum PipeType { READER, WRITER } PipeType;
 
 pid_t pids[MAX_CHILDREN] = {0};
+unsigned int visualizers_count = 0;
 
 void signal_handler(int signal);
 
@@ -49,7 +50,7 @@ static int itoa(int num, char* str, char suffix) {
 
 static void terminate_program(int pipefds[MAX_CHILDREN][2], int vis_pid_fd, int coord_pid_fd) {
     // Terminate all the visualizers
-    for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
+    for (unsigned int i = 0; i < visualizers_count; ++i) {
         kill(pids[i], SIGUSR1);
         int status;
         waitpid(pids[i], &status, 0);
@@ -115,7 +116,7 @@ static int child_main(unsigned int* shm_ptr, int pipefds[2], int vis_pid_fd, uns
 void signal_handler(int signal) {
     if (signal == SIGTERM) {
         // Kill all the visualizers
-        for (unsigned int i = 0; i < MAX_CHILDREN; ++i) {
+        for (unsigned int i = 0; i < visualizers_count; ++i) {
             kill(pids[i], SIGUSR1);
             int status;
             waitpid(pids[i], &status, 0);
@@ -135,8 +136,8 @@ void signal_handler(int signal) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        printf("Usage: %s N\n", argv[0]);
+    if (argc != 3) {
+        printf("Usage: %s [N] [visualizers_count]\n", argv[0]);
         return -1;
     }
 
@@ -155,6 +156,13 @@ int main(int argc, char* argv[]) {
     
     unsigned int N = atoi(argv[1]);
     printf("Printing %u numbers...\n", N);
+
+    visualizers_count = atoi(argv[2]);
+    if (visualizers_count > MAX_CHILDREN) {
+        printf("The max number of visualizers is %u, requested: %u.\n", MAX_CHILDREN, visualizers_count);
+        return -1;
+    }
+    printf("Visualizers count: %u\n", visualizers_count);
 
     shm_unlink("my_shm"); // Ensure that the shared memory doesn't exist (also ignore the result)
 
@@ -197,7 +205,7 @@ int main(int argc, char* argv[]) {
     int pipefds[MAX_CHILDREN][2];
 
     // Create the visualizers
-    for (unsigned int child_count = 0; child_count < MAX_CHILDREN; ++child_count) {
+    for (unsigned int child_count = 0; child_count < visualizers_count; ++child_count) {
         if (pipe(pipefds[child_count])) {
             perror("Failed creating the pipe");
             return -1;
@@ -217,7 +225,7 @@ int main(int argc, char* argv[]) {
     mem_copy(shm_ptr, &init_value, sizeof(unsigned int), 1);
 
     for (unsigned int i = 0; i < N; ++i) {
-        unsigned int child = rand() % MAX_CHILDREN;
+        unsigned int child = rand() % visualizers_count;
         bool iVal = READY;
         bool res;
         int iRet;
